@@ -2,7 +2,7 @@
 
 Python library that builds on sodapy
 
-**more_socrata** is a Python wrapper that builds upon [sodapy](https://github.com/afeld/sodapy.git) which is a python nyc_client for [Socrata Open Data API](hhttps://dev.socrata.com/) easily and reliably. It simplifies accessing UK police data via their public API, helping you fetch, filter, and analyze crime and policing information with minimal setup.
+**more_socrata** is a Python wrapper that builds upon [sodapy](https://github.com/afeld/sodapy.git) which is a python client for [Socrata Open Data API](https://dev.socrata.com/). 
 
 ---
 
