@@ -1,2 +1,2 @@
 # more_socrata
-Python library that builds on soapy
+Python library that builds on sodapy
