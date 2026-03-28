@@ -1,75 +1,24 @@
-import os, json, datetime, itertools
+from __future__ import annotations
+
+from more_socrata.utils.response import Response
+from more_socrata.utils.data_version import FileVersion
+from more_socrata.utils.data_loader import Dataset
+from more_socrata.utils.log_helper import BasicLogger
+from more_socrata.utils.strings import get_matching_scores_for_string, _get_unique_elements, stemmer
+from .exceptions import DatasetNotFound, OrganizationNotFound
+
+import os
+import datetime
+import itertools
 from urllib.parse import quote
 from pathlib import Path
-import sys
 import dotenv
-pardir = Path(__file__).resolve().parent
-if not str(pardir) in sys.path:
-    sys.path.insert(0, str(pardir))
-
-from utils.response import Response
-from utils.data_version import FileVersion
-from utils.data_loader import Dataset
-from utils.logging_helper import BasicLogger
-
-from nltk.stem.snowball import SnowballStemmer
 from sodapy import Socrata
-from difflib import SequenceMatcher
-import shapely, geopandas as gpd
-
-stemmer = SnowballStemmer("english")
-
-def get_matching_scores_for_string(stringsList:list, checkForString:str):
-    """Calculates the similarity ratio between a string and a list of strings.
-
-    This function iterates through a list of strings and computes the similarity ratio 
-    of each string to a specified string using the SequenceMatcher.ratio() method.  
-    The comparison is case-insensitive.  Empty strings in the input list are ignored.
-
-    Args:
-        stringsList: A list of strings to compare against.
-        checkForString: The string to compare each string in stringsList against.
-
-    Returns:
-        A list of floats. Each float represents the similarity ratio (between 0 and 1 inclusive) 
-        of a string from stringsList to checkForString.  The order of ratios corresponds to 
-        the order of strings in stringsList (excluding empty strings).  Returns an empty list if 
-        stringsList is empty or contains only empty strings.
-    """
-    return [SequenceMatcher(None, x.lower(), checkForString.lower()).ratio() for x in stringsList if x]
+#import shapely
+import geopandas as gpd
 
 
-class DatasetNotFound(Exception):
-    pass
 
-class OrganizationNotFound(Exception):
-    pass
-
-
-def _get_unique_elements(list_of_elems:list)->list:
-    """Returns a sorted list of unique elements from the input list.
-
-    Args:
-        list_of_elems: A list of elements.  Can contain nested lists.
-
-    Returns:
-        A new list containing only the unique elements from list_of_elems, 
-        sorted in ascending order.
-
-    Raises:
-        ValueError: If the input list is empty.
-    """
-    if list_of_elems:
-        if any(isinstance(x, list) for x in list_of_elems):
-            unique_elems = list(set(itertools.chain.from_iterable(list_of_elems)))
-        else:
-            unique_elems = list(set(list_of_elems))
-        unique_elems = [x for x in unique_elems if x]
-        unique_elems.sort()
-        return unique_elems
-    else:
-        raise ValueError("List should not be empty")
-    
 class MoreSocrata:
 
     """
@@ -833,7 +782,7 @@ class MoreSocrataData(MoreSocrata):
                     ]
                     ]
         if not matchedForAgency:
-            DatasetNotFound("No dataset was found for agency")
+            raise DatasetNotFound("No dataset was found for agency")
         else:
             matched_res = self._fetch_data_from_matched_resources(matchedForAgency)
         
@@ -879,9 +828,9 @@ class MoreSocrataData(MoreSocrata):
         
     def load_geo_data(self, geo_url:str):
         if "csv" in geo_url:
-            data = Dataset(docUrl=geo_url).load_data()
+            data = Dataset(doc_url=geo_url).load_data()
             if data:
-                pass
+                return data
         elif "geojson" in geo_url.lower():
             
             return gpd.read_file(geo_url)

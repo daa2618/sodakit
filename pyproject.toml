@@ -5,6 +5,8 @@ description = "Python library that builds upon socrata library"
 authors = [
     {name = "Dev Anand Anbarasu",email = "anand26dev@gmail.com"}
 ]
+
+packages = [{"name" : "more_socrata", "from": "src"}]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11"
@@ -24,3 +26,9 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.15.8,<0.16.0)",
+    "pytest (>=9.0.2,<10.0.0)"
+]
