@@ -16,7 +16,7 @@ class MethodError(Exception):
 class Response:
     _METHODS = ["GET", "POST"]
 
-    def __init__(self, url: str, method: str = "GET", session: object = None, **kwargs):
+    def __init__(self, url: str, method: str = "GET", session: requests.Session | None = None, **kwargs):
         self.url = url
         self.kwargs = kwargs
         self.method = method

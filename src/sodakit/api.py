@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-from more_socrata.utils.response import Response
-from more_socrata.utils.data_version import FileVersion
-from more_socrata.utils.data_loader import Dataset
-from more_socrata.utils.log_helper import BasicLogger
-from more_socrata.utils.strings import get_matching_scores_for_string, _get_unique_elements, stemmer
-from .exceptions import DatasetNotFound, OrganizationNotFound
-
-import os
 import datetime
 import itertools
-from urllib.parse import quote
+import os
 from pathlib import Path
-import dotenv
-from sodapy import Socrata
-#import shapely
-import geopandas as gpd
+from urllib.parse import quote
 
+import dotenv
+import geopandas as gpd
+from sodapy import Socrata
+
+from sodakit.utils.data_loader import Dataset
+from sodakit.utils.data_version import FileVersion
+from sodakit.utils.log_helper import BasicLogger
+from sodakit.utils.response import Response
+from sodakit.utils.strings import _get_unique_elements, get_matching_scores_for_string, stemmer
+
+from .exceptions import DatasetNotFound, OrganizationNotFound
 
 
 class MoreSocrata:
@@ -45,13 +45,13 @@ class MoreSocrata:
     """
     dotenv.load_dotenv()
 
-    def __init__(self, 
-                 domain:str, 
+    def __init__(self,
+                 domain:str,
                  domain_id:str,
                  app_token:str=None,
                  username:str=None,
                  password:str=None):
-    
+
         self.domain = domain
         self.domain_id = domain_id
         self.domain_url = f"https://{self.domain}/"
@@ -71,11 +71,11 @@ class MoreSocrata:
         self._logger = BasicLogger(verbose = False, log_directory=None, logger_name = "MORE_SOCRATA")
         self._logger.info(f"DATA_DIRECTORY: {self.data_path}")
         self._domain_dataset_dir = self.data_path/domain_id
-    
+
     def _get_all_datasets_in_api(self):
-         
+
         return self._client.datasets()
-        
+
 
     @property
     def _ALL_DATASETS_IN_DOMAIN(self):
@@ -103,7 +103,7 @@ class MoreSocrata:
             else:
                 self._logger.error("No datasets info could be found")
         return self._ALL_DATASETS
-    
+
     @property
     def ALL_DATASET_NAMES(self):
         """
@@ -125,7 +125,7 @@ class MoreSocrata:
             return dataset_names
         else:
             return []
-            
+
     @property
     def ALL_CATEGORIES(self):
         """Returns a unique list of all categories across all datasets in the domain.
@@ -137,12 +137,12 @@ class MoreSocrata:
         Returns:
             list: A list of unique strings representing all categories found across all datasets.  Returns an empty list if `_ALL_DATASETS_IN_DOMAIN` is empty or contains no categories.
         """
-        
+
         cats = [
             x.get("classification").get("categories") for x in self._ALL_DATASETS_IN_DOMAIN
         ]
         return _get_unique_elements(cats)
-    
+
     @property
     def ALL_AGENCIES(self):
         """Returns a list of unique agencies present in all datasets within the domain.
@@ -157,11 +157,10 @@ class MoreSocrata:
         """
         agencies = [
             [y.get("value") for y in x.get("classification").get("domain_metadata") \
-            if "agency" in y.get("key").lower()] for x in self._ALL_DATASETS_IN_DOMAIN \
-            
+            if "agency" in y.get("key").lower()] for x in self._ALL_DATASETS_IN_DOMAIN
         ]
         return _get_unique_elements(agencies)
-    
+
     @property
     def ALL_DOMAIN_CATEGORIES(self):
         """
@@ -179,7 +178,7 @@ class MoreSocrata:
             x.get("classification").get("domain_category") for x in self._ALL_DATASETS_IN_DOMAIN
         ]
         return _get_unique_elements(domainCats)
-    
+
     @property
     def ALL_DOMAIN_TAGS(self):
         """
@@ -197,7 +196,7 @@ class MoreSocrata:
             x.get("classification").get("domain_tags") for x in self._ALL_DATASETS_IN_DOMAIN
         ]
         return _get_unique_elements(domainTags)
-    
+
     @property
     def ALL_DATA_TYPES(self):
         """
@@ -214,8 +213,8 @@ class MoreSocrata:
             x.get("resource").get("type") for x in self._ALL_DATASETS_IN_DOMAIN
         ]
         return _get_unique_elements(dTypes)
-        
-    
+
+
 class MoreSocrataData(MoreSocrata):
 
     """
@@ -238,11 +237,11 @@ class MoreSocrataData(MoreSocrata):
 
     """
 
-    
+
     def __init__(self, domain, domain_id, **kwargs):
         super().__init__(domain, domain_id)
         self.dataset_id = kwargs.get("dataset_id")
-    
+
     def _get_resource_for_dataset(self):
         """Retrieves the resource associated with a dataset ID.
 
@@ -264,12 +263,12 @@ class MoreSocrataData(MoreSocrata):
             resource_for_id = [x.get("resource") for x in self._ALL_DATASETS_IN_DOMAIN if x.get("resource").get("id") == self.dataset_id]
             if resource_for_id:
                 return resource_for_id
-            
+
             else:
                 raise DatasetNotFound("No matching dataset was found for given dataset ID")
         else:
             self._logger.warning("Please input dataset ID while initiating the class")
-    
+
     def _get_metadata_for_dataset(self):
         """Retrieves metadata for the specified dataset.
 
@@ -293,7 +292,7 @@ class MoreSocrataData(MoreSocrata):
                 raise DatasetNotFound("No meta data found for given dataset ID")
         else:
             self._logger.warning("Please input dataset ID while initiating the class")
-    
+
     def get_column_description_for_dataset(self):
         """Retrieves column descriptions for a dataset.
 
@@ -313,10 +312,10 @@ class MoreSocrataData(MoreSocrata):
             resource_for_id = self._get_resource_for_dataset()
             if resource_for_id and len(resource_for_id) == 1:
                 resource_for_id = resource_for_id[0]
-                
+
             else:
                 raise KeyError("More than one dataset match for given ID")
-            
+
             cols_dict=dict(zip(resource_for_id.get("columns_field_name"),
                             resource_for_id.get("columns_description")))
             if cols_dict:
@@ -327,7 +326,7 @@ class MoreSocrataData(MoreSocrata):
         else:
             self._logger.warning("Please input dataset ID while initiating the class")
             return None
-            
+
     def try_loading_dataset(self, print_description:bool=False, limit:bool=False):
         """
         Attempts to load a dataset from a Socrata API.
@@ -364,8 +363,8 @@ class MoreSocrataData(MoreSocrata):
                 resource_for_id = resource_for_id[0]
             else:
                 raise KeyError("More than one dataset match for given ID")
-            
-            
+
+
             dataset_name, dataset_description = resource_for_id.get("name"), resource_for_id.get("description")
             self._logger.info("="*127)
             parent_id = resource_for_id.get("parent_fxf")
@@ -376,7 +375,7 @@ class MoreSocrataData(MoreSocrata):
             self._logger.info(f"Trying to fetch the data for '{dataset_name}' from {self.domain}....")
             if print_description:
                 self._logger.info(f"Data Description: \n\t{dataset_description}\n")
-            
+
             n_rows = [x.get("cachedContents").get("count") for x in meta_data.get("columns") if x.get("cachedContents") is not None]
             n_rows = [x for x in n_rows if x is not None]
 
@@ -385,7 +384,7 @@ class MoreSocrataData(MoreSocrata):
                 self._logger.info(f"The Dataset consits of '{n_rows:,}' rows\n")
             else:
                 self._logger.info("Number of rows was not found for the dataset in meta data")
-            
+
             d_type = resource_for_id.get("type")
             self._logger.info(f"Data type of the required file: {d_type}\n")
 
@@ -395,7 +394,7 @@ class MoreSocrataData(MoreSocrata):
                     blob = blob[-1]
                     download_url = f"{self.domain_url}download/{self.dataset_id}/application%2F{blob}"
                     self._logger.info(f"For this file format, Socrata does not return a json value\nDownload the file from '{download_url}' instead")
-                    
+
                     self._logger.info("="*127)
                     return download_url
                 else:
@@ -405,9 +404,9 @@ class MoreSocrataData(MoreSocrata):
             elif d_type == "map":
                 urls = []
                 if parent_id:
-                    
-                    
-                        
+
+
+
                     urls.append(f"{self.domain_url}api/views/{parent_id}/rows.csv?date={datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d')}&accessType=DOWNLOAD")
                     urls.append(f"{self.domain_url}api/geospatial/{parent_id}?method=export&format=GeoJSON")
                     urls.append(f"{self.domain_url}api/views/{parent_id}/rows.csv?accessType=DOWNLOAD")
@@ -417,13 +416,11 @@ class MoreSocrataData(MoreSocrata):
                     urls.append(f"{self.domain_url}api/geospatial/{self.dataset_id}?method=export&format=GeoJSON")
                     urls.append(f"{self.domain_url}api/views/{self.dataset_id}/rows.csv?accessType=DOWNLOAD")
                     urls.append(f"{self.domain_url}api/views/{self.dataset_id}/rows.json?accessType=DOWNLOAD")
-                response = None
-                
-            
+
                 self._logger.info("For this file format, Socrata does not return a json value\nDownload the file from the urls instead")
                 self._logger.info("="*127)
                 return urls
-                
+
 
             else:
                 self._logger.info("Fetching the data using the API...")
@@ -432,29 +429,29 @@ class MoreSocrataData(MoreSocrata):
                     try:
                         data = self._client.get(dataset_identifier=self.dataset_id, limit=limit)
                     except Exception as e:
-                        self._logger.error(f"Error",e)
-                
+                        self._logger.error(f"Failed to fetch dataset with limit: {e}")
+
                 else:
 
                     if n_rows and n_rows > 1000000:
-                        raise MemoryError("The file size may be too big to get json;\n\tConsidier filtering before querying")
-                        
+                        raise MemoryError("The file size may be too big to get json;\n\tConsider filtering before querying")
+
                     try:
                         data = list(self._client.get_all(dataset_identifier=self.dataset_id))
                     except Exception as e:
-                        self._logger.error(f"Error",e)
+                        self._logger.error(f"Failed to fetch all records: {e}")
 
-                if not data:    
+                if not data:
                     if parent_id:
-                        
+
                         json_url = f"{self.domain_url}/resource/{parent_id}.json"
                         try:
                             response = Response(json_url).get_json_from_response()
                         except Exception as e:
-                            self._logger.error("", e)
+                            self._logger.error(f"Failed to fetch parent resource: {e}")
                             response = None
                         if response:
-                            
+
                             self.dataset_id = parent_id
                             meta = self._get_metadata_for_dataset()
                             n_rows = [x.get("cachedContents").get("count") for x in meta.get("columns") if x.get("cachedContents") is not None]
@@ -466,21 +463,21 @@ class MoreSocrataData(MoreSocrata):
                                 else:
                                     try:
                                         _data_client = self._client.get(dataset_identifier=self.dataset_id, limit=n_rows)
-                                    except:
+                                    except Exception:
                                         _data_client = None
-                                    
+
                                     if _data_client:
                                         self._logger.info("The data was successfully obtained")
                                         return _data_client
-                                    
+
                                     self._logger.info("Returning data\nCheck the site to see if the data is complete")
-                            
+
                             url=f"{self.domain_url}api/views/{parent_id}/rows.csv?date={datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d')}&accessType=DOWNLOAD"
                             self._logger.info(f"Alternatively, Click the url {url} to download the data")
                             self._logger.info("="*127)
                             return response
-                        
-                
+
+
                 if data:
                     data = [x for x in data if x]
                     if data:
@@ -489,7 +486,7 @@ class MoreSocrataData(MoreSocrata):
                         return data
                     else:
                         self._logger.error(f"Unable to fetch the data from API")
-                        
+
                         self._logger.info(f"Visit {self.domain_url}/resource/{self.dataset_id} for more information")
                         if parent_id:
                             url=f"{self.domain_url}api/views/{parent_id}/rows.csv?date={datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d')}&accessType=DOWNLOAD"
@@ -500,14 +497,14 @@ class MoreSocrataData(MoreSocrata):
                     self._logger.error(f"Unable to fetch the data from API")
                     self._logger.info("="*127)
                     return None
-                
-                
-                    
-        
+
+
+
+
         else:
             self._logger.info("Please input dataset ID while initiating the class")
             return None
-    
+
     def _search_list_by_string(self, search_list:list, search_string:str):
         """Searches a list of strings for a given search string using stemming and score matching.
 
@@ -538,7 +535,7 @@ class MoreSocrataData(MoreSocrata):
                 return filtered
             else:
                 return None
-            
+
     def search_available_datasets(self, dataset_name:str) ->list:
         """Searches for dataset names matching a given string.
 
@@ -558,8 +555,8 @@ class MoreSocrataData(MoreSocrata):
             return filtered
         else:
             raise DatasetNotFound("No matching datasets could be found")
-        
-    
+
+
     def get_dataset_id_for_dataset_name(self, abs_dataset_name:str) -> str:
         """Retrieves the dataset ID associated with a given absolute dataset name.
 
@@ -580,7 +577,7 @@ class MoreSocrataData(MoreSocrata):
     
             DatasetNotFound: If no dataset with the given name is found.
         """
-        
+
         matched_for_name = [x for x in self._ALL_DATASETS_IN_DOMAIN \
                           if x.get("resource").get("name") == abs_dataset_name]
         if matched_for_name:
@@ -597,7 +594,7 @@ class MoreSocrataData(MoreSocrata):
                 #raise KeyError(f"More than one dataset match for given name '{abs_dataset_name}'")
         else:
             raise DatasetNotFound(f"No dataset found for name '{abs_dataset_name}'")
-        
+
     def search_available_domain_tags(self, search_tag:str) ->list:
         """Searches for domain tags matching a given search string.
 
@@ -616,8 +613,8 @@ class MoreSocrataData(MoreSocrata):
             return filtered
         else:
             raise KeyError("No matching tags could be found")
-        
-    
+
+
     def _fetch_data_from_matched_resources(self, matched_results:list):
         """
         Processes a list of matched resource results and returns a formatted list of dictionaries.
@@ -646,11 +643,11 @@ class MoreSocrataData(MoreSocrata):
             data_created_at = x.get("resource").get("createdAt"),
             data_updated_at = x.get("resource").get("data_updated_at"),
             updated_at = x.get("resource").get("updated_at"),
-            
+
             resource_url = x.get("permalink")
             )\
         for x in matched_results]
-                
+
         for x in matched_res:
             for date_col in ["data_created_at", "data_updated_at", "updated_at"]:
                 if not x[date_col] or not isinstance(x[date_col], str):
@@ -661,14 +658,14 @@ class MoreSocrataData(MoreSocrata):
                     x[date_col] = datetime.datetime.strftime(x[date_col], "%d %B %Y %H:%M:%S")
 
         key = lambda x: datetime.datetime.strptime(x.get("data_updated_at"), "%d %B %Y %H:%M:%S")
-        
+
         try:
             matched_res.sort(key=key, reverse=True)
         except Exception as e:
-            self._logger.warning("Sorting by date unsuccessfull")
+            self._logger.warning("Sorting by date unsuccessful")
         self._logger.info(f"{len(matched_res)} matched results were found and sorted by the latest data updated date\n")
         return matched_res
-    
+
 
     def filter_data_for_domain_tags(self, search_tag:str) -> list:
         """Filters datasets based on a given domain tag.
@@ -696,14 +693,14 @@ class MoreSocrataData(MoreSocrata):
             matched_results_for_tag = [x for x in self._ALL_DATASETS_IN_DOMAIN if any(tag in x.get("classification").get("domain_tags") for tag in matched_tags)]
             if matched_results_for_tag:
                 matched_res = self._fetch_data_from_matched_resources(matched_results_for_tag)
-                    
+
             else:
                 raise DatasetNotFound("No matching dataset was found with given domain tag")
-            
+
             return matched_res
         else:
             raise DatasetNotFound("No matching dataset was found with given domain tag")
-    
+
 
     def filter_datasets_for_data_type(self, d_type:str) -> list:
         """Filters a list of datasets to return only those matching a specified data type.
@@ -730,7 +727,7 @@ class MoreSocrataData(MoreSocrata):
                 return res
             else:
                 return None
-    
+
     def search_agencies(self, agency:str) -> list:
         """Searches for agencies matching a given string.
 
@@ -748,7 +745,7 @@ class MoreSocrataData(MoreSocrata):
             raise OrganizationNotFound("No agency responsible for data was found for given string")
         else:
             return _get_unique_elements(matched_agencies)
-        
+
     def filter_datasets_for_agency(self, abs_agency_name:str) -> list:
         """Filters datasets to retrieve only those associated with a specific agency.
 
@@ -773,7 +770,7 @@ class MoreSocrataData(MoreSocrata):
                 self._logger.info(f"More than one matching agencies found\nResults: {', '.join(matched_agencies)}\nChoose one and try again")
             else:
                 raise OrganizationNotFound("Agency not found.Use absolute agency names")
-        
+
         matched_res= None
         matchedForAgency = [
             x for x in self._ALL_DATASETS_IN_DOMAIN if abs_agency_name in [
@@ -785,12 +782,12 @@ class MoreSocrataData(MoreSocrata):
             raise DatasetNotFound("No dataset was found for agency")
         else:
             matched_res = self._fetch_data_from_matched_resources(matchedForAgency)
-        
+
         if matched_res:
             return matched_res
         else:
             return None
-    
+
     def query_dataset(self,query:str):
         """Queries a dataset based on a provided query string.
 
@@ -815,65 +812,65 @@ class MoreSocrataData(MoreSocrata):
             try:
                 queried_data = Response(url=url,
                                        params=params).get_json_from_response()
-                
+
             except Exception as e:
                 self._logger.error("Failed to get json response", e)
                 queried_data = None
-            
+
             return queried_data
-        
+
         else:
             self._logger.warning("Initiate by setting dataset id")
             return None
-        
+
     def load_geo_data(self, geo_url:str):
         if "csv" in geo_url:
             data = Dataset(doc_url=geo_url).load_data()
             if data:
                 return data
         elif "geojson" in geo_url.lower():
-            
+
             return gpd.read_file(geo_url)
         else:
             raise TypeError(f"Supported geo datatypes: CSV or geojson")
-        
 
 
 
 
-        
-        
-
-            
-
-            
-
-        
-    
-
-        
 
 
 
 
-            
 
 
 
-    
-        
-    
 
 
-            
-        
-            
-    
 
-    
 
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

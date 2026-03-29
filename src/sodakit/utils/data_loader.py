@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import io
+import json
+import os
+import re
+import urllib.parse as urlparser
+from typing import List, Optional, Union
+
+import pandas as pd
+
 from .log_helper import BasicLogger, logging
 from .response import Response
 
-import os
-import re
-import json
-import pandas as pd
-import io
-import urllib.parse as urlparser
-from typing import Union, Optional, List
 
 class FilePathError(Exception):
     pass
@@ -42,15 +44,15 @@ class Dataset:
         self.kwargs = {k:v for k,v in kwargs.items() if k not in ["doc_url", "file_path"]}
         self._supported_extensions = ["csv", "ods", "xlsx", "xls", "json", "pdf",
                                      "text/csv", "geojson", "txt"]
-        self._bl = BasicLogger(verbose=False, 
-                               log_directory=None, 
-                               logger_name="DATA_LOADER", 
+        self._bl = BasicLogger(verbose=False,
+                               log_directory=None,
+                               logger_name="DATA_LOADER",
                                log_level = logging.DEBUG if debug else logging.INFO)
-        
+
         self._bl.debug(f"doc_url: {self.doc_url}")
         self._bl.debug(f"file_path: {self.file_path}")
         self._bl.debug(f"kwargs: {self.kwargs}")
-    
+
     def _response(self, **kwargs):
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -63,17 +65,17 @@ class Dataset:
             return Response(url, headers=headers, **kwargs).assert_response()
         else:
             raise ValueError("No URL available to make a request")
-    
+
     def _guess_extension(self):
-    
+
         if self.doc_url:
             response = self._response()
             return response.headers.get("Content-Type")
-        
+
     @property
     def _extension(self):
-        if hasattr(self, '__extension_override') and self.__extension_override:
-            return self.__extension_override
+        if hasattr(self, '_extension_override') and self._extension_override:
+            return self._extension_override
         extension = os.path.splitext(self.doc_url or self.file_path)[1]
         if extension:
             return extension
@@ -83,15 +85,14 @@ class Dataset:
 
     @_extension.setter
     def _extension(self, value):
-        self.__extension_override = value
+        self._extension_override = value
 
     @property
     def _github_doc_url(self):
         if self.doc_url:
             if "github" in self.doc_url:
                 return re.sub("blob", "raw", self.doc_url)
-    
-    @property
+
     def _assert_file_path(self):
         if self.file_path:
             if not os.path.exists(self.file_path):
@@ -102,16 +103,14 @@ class Dataset:
         if not any(extension.endswith(x) for x in self._supported_extensions) and \
             not any(x in re.sub("\\.", "", extension) for x in self._supported_extensions):
             raise UnsupportedExtension(f"Extension: {extension} is not supported")
-        
-    
+
+
     def _try_loading_from_github(self):
         if self.doc_url and "github" in self.doc_url:
             path = urlparser.urlsplit(self.doc_url).path
             doc_url = re.sub("blob", "refs/heads", urlparser.urljoin("https://raw.githubusercontent.com", path))
-            #self._bl.info(doc_url)
             return self._response(url=doc_url)
-        
-    @property    
+
     def _load_csv(self):
         import csv
 
@@ -144,9 +143,9 @@ class Dataset:
                 df.columns = [re.sub(" ", "_", str(x).lower()) for x in df.columns]
                 content = json.loads(df.to_json(orient="records"))
 
-        
+
         elif self.file_path:
-            self._assert_file_path
+            self._assert_file_path()
 
             with open(self.file_path, "r") as f:
                 dat = csv.DictReader(f)
@@ -154,44 +153,41 @@ class Dataset:
                 self._bl.debug(f"columns: {col_names}")
                 self._bl.debug("Converting the response into json format")
                 content = [{col.replace(" ", "_").lower() : row[col] for col in col_names} for row in dat]
-        
-        
+
+
         return content
-    
-    @property
+
     def _load_ods(self):
         if self.doc_url:
             response = self._response(url=self.doc_url)
             content = io.BytesIO(response.content)
         elif self.file_path:
             content = self.file_path
-        
+
         xls = pd.ExcelFile(content)
         self._bl.debug(f"Sheets in this file: {xls.sheet_names}")
         out = {}
         for sheet in xls.sheet_names:
             out[sheet] = pd.read_excel(xls, sheet, engine="odf")
-        
+
         return out
-    @property
     def _load_excel(self):
         if self.doc_url:
             content = io.BytesIO(self._response().content)
         elif self.file_path:
             content = self.file_path
-        
+
         xls = pd.ExcelFile(content)
         out = {}
         self._bl.debug(f"Sheets in this file: {xls.sheet_names}")
         for sheet in xls.sheet_names:
             out[sheet] = pd.read_excel(xls, sheet)
         return out
-    @property
     def _load_json(self):
         if self.doc_url:
             try:
                 responseDict = json.loads(self._response().content)
-            except:
+            except Exception:
                 try:
                     path = urlparser.urlsplit(self.doc_url).path
                     if "github" in self.doc_url:
@@ -202,13 +198,12 @@ class Dataset:
                     self._bl.exception(f"Failed to load data : \n\t{e}")
                     pass
         elif self.file_path:
-            self._assert_file_path
+            self._assert_file_path()
             with open(self.file_path, "r") as f:
                 responseDict = json.load(f)
-        
+
         return responseDict
-    
-    @property
+
     def _load_pdf(self):
         import pdfplumber
         if self.doc_url:
@@ -217,43 +212,40 @@ class Dataset:
                 return pdfplumber.open(content)
             except Exception as e:
                 self._bl.exception(f"Error obtaining pdf from url\n\t{e}")
-        
+
         elif self.file_path:
-            self._assert_file_path
+            self._assert_file_path()
             try:
                 return pdfplumber.open(self.file_path)
             except Exception as e:
                 self._bl.exception(f"Failed to load pdf from filepath\n\t{e}")
-    
-    @property
+
     def _load_geojson(self):
         import geopandas as gpd
         if self.doc_url:
             try:
                 return gpd.read_file(self.doc_url)
             except Exception as e:
-                self._bl.exception("Failed to load geojson from url\n\t{e}")
+                self._bl.exception(f"Failed to load geojson from url\n\t{e}")
         elif self.file_path:
             try:
                 return gpd.read_file(self.file_path)
             except Exception as e:
-                self._bl.exception("Failed to load geojson from file\n\t{e}")
-    
-    @property
+                self._bl.exception(f"Failed to load geojson from file\n\t{e}")
+
     def _load_text(self):
         if self.doc_url:
             try:
                 return self._response().text
             except Exception as e:
-                self._bl.exception("Failed to load text from url\n\t{e}")
+                self._bl.exception(f"Failed to load text from url\n\t{e}")
         elif self.file_path:
             try:
                 with open(self.file_path, "r") as f:
                     return f.read()
             except Exception as e:
-                self._bl.exception("Failed to load text from file\n\t{e}")
+                self._bl.exception(f"Failed to load text from file\n\t{e}")
 
-    @property
     def _load_for_extension(self):
         extension = self._extension
         if extension:
@@ -261,44 +253,44 @@ class Dataset:
             self._check_extension(extension)
             if extension.endswith("csv") or "csv" in extension:
                 try:
-                    return self._load_csv
+                    return self._load_csv()
                 except Exception as e:
                     self._bl.exception(f"Failed to load from csv: {str(e)}")
             elif extension.endswith("ods") or "ods" in extension:
                 try:
-                    return self._load_ods
+                    return self._load_ods()
                 except Exception as e:
                     self._bl.exception(f"Failed to load from ODS: {str(e)}")
             elif extension.endswith("xlsx") or extension.endswith("xls") or \
                 "xlsx" in extension or "xls" in extension:
                 try:
-                    return self._load_excel
+                    return self._load_excel()
                 except Exception as e:
                     self._bl.exception(f"Failed to load from excel: {str(e)}")
             elif extension.endswith("json") or "json" in extension:
                 try:
-                    return self._load_json
+                    return self._load_json()
                 except Exception as e:
                     self._bl.exception(f"Failed to load from json: {str(e)}")
             elif extension.endswith("pdf") or "pdf" in extension:
                 try:
-                    return self._load_pdf
+                    return self._load_pdf()
                 except Exception as e:
                     self._bl.exception(f"Failed to load from pdf: {str(e)}")
             elif extension.endswith("geojson") or "geojson" in extension or \
                 "geo+json" in extension:
                 try:
-                    return self._load_geojson
+                    return self._load_geojson()
                 except Exception as e:
                     self._bl.exception(f"Failed to load from geojson: {str(e)}")
-                
+
             elif extension.endswith("txt") or "txt" in extension or \
                 "text/csv" in extension or "text/plain" in extension:
                 try:
-                    return self._load_text
+                    return self._load_text()
                 except Exception as e:
                     self._bl.exception(f"Failed to load from text: {str(e)}")
-    
+
 
     def load_data(self):
         """Loads data from a specified URL or file path.
@@ -323,21 +315,21 @@ class Dataset:
                 guessed_extension = self._guess_extension()
                 self._supported_extensions.append(guessed_extension)
                 self._extension = guessed_extension
-                return self._load_for_extension
+                return self._load_for_extension()
             else:
-                return self._load_for_extension
-            
+                return self._load_for_extension()
+
         except Exception as e:
             self._bl.exception(f"Failed to load data\nReason: {str(e)}")
             return None
-        
+
 
 class PostProcess:
     def __init__(self, debug:bool=False):
         self._debug = debug
-        self._bl = BasicLogger(verbose=False, 
-                               log_directory=None, 
-                               logger_name="POST_PROCESS", 
+        self._bl = BasicLogger(verbose=False,
+                               log_directory=None,
+                               logger_name="POST_PROCESS",
                                log_level = logging.DEBUG if self._debug else logging.INFO)
 
     @staticmethod
@@ -366,13 +358,13 @@ class PostProcess:
         """
         if not year_str or not isinstance(year_str, str):
             return str(year_str) if year_str else ""
-        
+
         # Split by hyphen and clean whitespace
         parts = [p.strip() for p in year_str.split("-") if p.strip()]
-        
+
         if not parts:
             return year_str
-        
+
         # Case: Single year string (e.g., "2023")
         if len(parts) == 1:
             match = re.search(r"\d{4}", parts[0])
@@ -381,20 +373,20 @@ class PostProcess:
         # Case: Range (e.g., "2021-22" or "2021-2022")
         first_part = parts[0]
         last_part = parts[-1]
-        
+
         # Extract digits from the end of the range
         match = re.search(r"\d+", last_part)
         if not match:
-            return first_part 
-        
+            return first_part
+
         end_year_digits = match.group()
-        
-        # If the end year is only 2 digits (e.g., "22"), prefix it with 
+
+        # If the end year is only 2 digits (e.g., "22"), prefix it with
         # the century from the start year (e.g., "20")
         if len(end_year_digits) == 2 and len(first_part) >= 2:
-            century = first_part[:2] 
+            century = first_part[:2]
             return f"{century}{end_year_digits}"
-        
+
         return end_year_digits
 
     @staticmethod
@@ -450,9 +442,9 @@ class PostProcess:
         else:
             df_clean.columns = new_columns
         return df_clean
-        
+
     @staticmethod
-    def _set_columns_from_index_and_drop_rows(df:pd.DataFrame, 
+    def _set_columns_from_index_and_drop_rows(df:pd.DataFrame,
                                              col_index:Union[str, int])->Optional[pd.DataFrame]:
         """Sets DataFrame columns from a specified row and drops rows above that row.
 
@@ -500,40 +492,39 @@ class PostProcess:
         d_type_lower = d_type.lower()
         if  d_type_lower not in ["float", "int", "category"]:
             raise TypeError(f"Invalid data type '{d_type}'. Choose from 'float, int'")
-        
+
         post_process = PostProcess(debug=debug)
         df_copy = df.copy()
-        
+
         for col in df_copy.columns:
             post_process._bl.debug(f"Processing column: '{col}'")
             try:
                 df_copy[col] = df_copy[col].astype(d_type_lower)
                 post_process._bl.debug(f"Column: '{col}' converted to data type '{d_type}'.")
-            except:
+            except (ValueError, TypeError):
                 post_process._bl.debug(f"Processing failed for column: '{col}'. Retaining original data type")
-                df_copy[col] = df_copy[col]
-        
+                continue
+
         return df_copy
-    
-    
-
-    
-
-    
 
 
 
-            
-
-    
-
-        
-
-        
-
-                
-
-            
 
 
-        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

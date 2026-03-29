@@ -1,8 +1,8 @@
-# more_socrata
+# sodakit
 
 Python library that builds on sodapy
 
-**more_socrata** is a Python wrapper that builds upon [sodapy](https://github.com/afeld/sodapy.git) which is a python client for [Socrata Open Data API](https://dev.socrata.com/). 
+**sodakit** is a Python wrapper that builds upon [sodapy](https://github.com/afeld/sodapy.git) which is a python client for [Socrata Open Data API](https://dev.socrata.com/). 
 
 ---
 
@@ -37,15 +37,15 @@ source .venv/bin/activate
 Clone and install locally:
 
 ```bash
-git clone https://github.com/daa2618/more_socrata.git
-cd more_socrata
+git clone https://github.com/daa2618/sodakit.git
+cd sodakit
 pip install .
 ```
 
 Or install directly using pip (once published on PyPI):
 
 ```bash
-pip install more_socrata
+pip install sodakit
 ```
 
 ---
@@ -57,7 +57,7 @@ Here’s how to get started:
 ```python
 
 
-from more_socrata.helper import MoreSocrataData
+from sodakit import MoreSocrataData
 
 domain = "data.cityofnewyork.us"
 nyc_client = MoreSocrataData(domain ="data.cityofnewyork.us",
@@ -89,6 +89,15 @@ print(col_desc)
 ---
 
 ```
+
+## 🧪 Running Tests
+
+```bash
+poetry install
+pytest tests/
+```
+
+---
 
 ## 🧾 Contributing
 

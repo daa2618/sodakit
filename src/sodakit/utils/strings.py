@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from difflib import SequenceMatcher
-from nltk.stem.snowball import SnowballStemmer
 import itertools
+from difflib import SequenceMatcher
+
+from nltk.stem.snowball import SnowballStemmer
 
 stemmer = SnowballStemmer("english")
 

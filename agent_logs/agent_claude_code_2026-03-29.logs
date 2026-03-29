@@ -1,0 +1,47 @@
+# [SESSION START] 2026-03-29 - Conversation ID: rename-to-sodakit
+
+---
+
+## [2026-03-29 00:00:00 UTC] RENAME PROJECT: more_socrata → sodakit
+
+### Context
+- User requested renaming the project from "more_socrata" to "sodakit"
+- Name chosen because it references the SODA (Socrata Open Data API) and signals a toolkit
+
+### Action Taken
+- Renamed directory: `src/more_socrata/` → `src/sodakit/`
+- Updated `pyproject.toml`: package name `more-socrata` → `sodakit`, packages include `sodakit`
+- Updated all imports in `src/sodakit/api.py`: `from more_socrata.utils.*` → `from sodakit.utils.*`
+- Updated all imports in 7 test files: `from more_socrata.*` → `from sodakit.*`
+- Updated `tests/conftest.py`: patch target `more_socrata.api.Socrata` → `sodakit.api.Socrata`, imports, fixture names (`more_socrata_instance` → `sodakit_instance`, `more_socrata_data_instance` → `sodakit_data_instance`)
+- Updated `tests/test_api.py`: patch target `more_socrata.api.Response` → `sodakit.api.Response`, all fixture references
+- Updated `README.md`: all references to `more_socrata` → `sodakit`
+- Updated `CLAUDE.md`: all references to `more_socrata` → `sodakit`
+- Ran `poetry lock && poetry install` to reinstall under new name
+- Ran `poetry run pytest tests/ -v` — 117 passed, 1 skipped
+
+### Outcome
+- Success: Full rename complete, all tests passing
+
+### Bugs / Errors Encountered
+- N/A
+
+### Fix or Mitigation
+- N/A
+
+### Pitfalls & Future Risks
+- GitHub repo URL in README.md still references `daa2618/more_socrata` — will need updating when repo is renamed on GitHub
+- Agent logs reference `more_socrata` historically — left as-is (historical record)
+
+### Best Practices & Lessons Learned
+- Comprehensive grep after rename ensures no stale references remain
+- Fixture names should also be updated to match new naming
+
+### New Technologies / Tools Used
+- N/A
+
+### Follow-ups / TODOs
+- Rename GitHub repository from `more_socrata` to `sodakit` if desired
+- Update git remote URL after GitHub rename
+
+---

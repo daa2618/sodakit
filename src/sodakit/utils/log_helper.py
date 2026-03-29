@@ -48,3 +48,6 @@ class BasicLogger:
 
     def critical(self, msg, *a, **kw):
         self.logger.critical(msg, *a, **kw)
+
+    def exception(self, msg, *a, **kw):
+        self.logger.exception(msg, *a, **kw)

@@ -2,9 +2,9 @@ from .api import MoreSocrata, MoreSocrataData
 from .exceptions import DatasetNotFound, OrganizationNotFound
 
 __all__ = [
-    "MoreSocrata", 
+    "MoreSocrata",
     "MoreSocrataData",
-    "DatasetNotFound", 
+    "DatasetNotFound",
     "OrganizationNotFound"
 
 ]

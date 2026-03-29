@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from .data_version import FileVersion, BasicLogger, logging
-
-import os
 import json
+import os
 from datetime import datetime
 from json import JSONEncoder
+
 import pandas as pd
 
+from .data_version import BasicLogger, FileVersion, logging
 
 
 class DateTimeEncoder(JSONEncoder):
@@ -33,11 +33,11 @@ class WriteFile(FileVersion):
     def __init__(self, data_to_write, debug:bool=False,**kwargs):
         super().__init__(**kwargs)
         self.data_to_write = data_to_write
-        self._bl = BasicLogger(verbose = False, 
-                                log_directory=None, 
-                                log_level = logging.DEBUG if debug else logging.INFO, 
+        self._bl = BasicLogger(verbose = False,
+                                log_directory=None,
+                                log_level = logging.DEBUG if debug else logging.INFO,
                                 logger_name="DATA WRITER")
-        
+
     def _write_file_to_disk(self, check_version:bool)->None:
         """
         Writes data to a file on disk.
@@ -58,7 +58,7 @@ class WriteFile(FileVersion):
         Check version should be a bool\nSet check_version=True to remove older files\nSetting check_version=False will keep the files that are at least a day old"""
         if not self.folder_exists():
             self._bl.error("Folder does not exist")
-            return 
+            return
 
         if check_version:
             self.check_version()
@@ -103,7 +103,7 @@ class WriteFile(FileVersion):
                     f.write(self.data_to_write)
             except Exception as e:
                 self._bl.error(f"Unable to write the content as txt", e)
-        
+
         elif "xls" in self.extension:
             if isinstance(self.data_to_write, pd.DataFrame):
                 df = self.data_to_write
@@ -122,14 +122,13 @@ class WriteFile(FileVersion):
                 self._bl.error("Unable to write the content as an excel file")
 
         return None
-    
+
     def write_file_to_disk(self, check_version:bool)->None:
         try:
             self._write_file_to_disk(check_version=check_version)
             self._bl.debug(f"The file has been written")
         except Exception as e:
             self._bl.error("Data Writer failed", e)
-        
-    
 
-        
+
+

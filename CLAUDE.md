@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**more_socrata** is a Python wrapper that builds on [sodapy](https://github.com/afeld/sodapy) to interact with the [Socrata Open Data API](https://dev.socrata.com/). It provides dataset discovery, searching, filtering by agency/tag/category, and data loading from multiple formats.
+**sodakit** is a Python wrapper that builds on [sodapy](https://github.com/afeld/sodapy) to interact with the [Socrata Open Data API](https://dev.socrata.com/). It provides dataset discovery, searching, filtering by agency/tag/category, and data loading from multiple formats.
 
 ## Build & Development
 
@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-The package lives under `src/more_socrata/` using the src-layout:
+The package lives under `src/sodakit/` using the src-layout:
 
 - **`api.py`** — Core classes. `MoreSocrata` handles connection to a Socrata domain and exposes metadata properties (ALL_AGENCIES, ALL_CATEGORIES, ALL_DOMAIN_TAGS, ALL_DATA_TYPES, ALL_DATASET_NAMES). `MoreSocrataData` extends it with dataset loading (`try_loading_dataset`), querying (`query_dataset`), searching, and filtering by agency/tag/type.
 - **`exceptions.py`** — `DatasetNotFound`, `OrganizationNotFound`.
@@ -33,7 +33,7 @@ The package lives under `src/more_socrata/` using the src-layout:
 - `MoreSocrata` lazily loads and caches all domain datasets to a local JSON file (via `FileVersion.load_latest_file`). The cache lives under `data/<domain_id>/`.
 - Credentials can be passed directly or loaded from environment variables (`APP_TOKEN`, `USERNAME`, `PASSWORD`) via `dotenv`.
 - Dataset search uses NLTK stemming first, then falls back to `SequenceMatcher` ratio >= 0.5.
-- The old package layout (`more_socrata/`) at the repo root is deleted; the active code is in `src/more_socrata/`.
+- The old package layout (`sodakit/`) at the repo root is deleted; the active code is in `src/sodakit/`.
 
 ## Logging Protocol
 Always follow the agent logging protocol defined in ~/.claude/skills/agent_logger/SKILL.md before and after every task.
