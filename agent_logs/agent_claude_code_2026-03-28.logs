@@ -1,0 +1,135 @@
+# [SESSION START] 2026-03-28 - Conversation ID: v2-planning-bugfixes-testing
+
+---
+
+## [2026-03-28 00:00:00 UTC] SESSION INITIALIZATION & PRIOR WORK SUMMARY
+
+### Context
+- User requested CLAUDE.md creation, bug identification, bug fixes, and v2 planning for the more_socrata project
+- Project is a Python wrapper around sodapy for the Socrata Open Data API
+- Uses Poetry with src-layout (`src/more_socrata/`), Python 3.11+
+
+### Action Taken
+- Created CLAUDE.md with project overview, build commands, architecture, and key patterns
+- Identified 7 bugs across the codebase and fixed them:
+  1. `src/more_socrata/utils/data_loader.py:82` — _extension setter infinite recursion → writes to `__extension_override`
+  2. `src/more_socrata/api.py:831` — wrong kwarg `docUrl` → `doc_url`
+  3. `src/more_socrata/api.py:830-833` — CSV branch in load_geo_data never returns → added `return data`
+  4. `src/more_socrata/utils/data_loader.py:441` — `self` in @staticmethod → local BasicLogger instance
+  5. `src/more_socrata/utils/data_loader.py:62-64` — Response() without URL → pops url from kwargs, raises ValueError
+  6. `src/more_socrata/api.py:785` — DatasetNotFound not raised → added `raise`
+  7. `src/more_socrata/utils/log_helper.py:34` — log_level silently ignored → added explicit param
+- Explored codebase thoroughly with 3 parallel agents for v2 planning
+- Identified additional bugs and code quality issues (BasicLogger missing .exception(), @property side effects, bare excepts, etc.)
+- Designed comprehensive v2 plan with Plan agent
+- Wrote plan to `/Users/dev/.claude/plans/quiet-snuggling-flamingo.md`
+
+### Outcome
+- Success: CLAUDE.md created, 7 bugs fixed, v2 plan drafted
+- Plan awaiting user approval before implementation begins
+
+### Bugs / Errors Encountered
+- N/A (all bugs were in the project code, not in the process)
+
+### Fix or Mitigation
+- See bug fixes listed above; all applied via Edit tool
+
+### Pitfalls & Future Risks
+- BasicLogger.exception() still missing — will crash data_loader.py at runtime (planned for Phase 2.1)
+- 8 @property decorators with network I/O side effects remain (planned for Phase 2.2)
+- Zero test coverage currently
+
+### Best Practices & Lessons Learned
+- The _extension property/setter pattern needed a backing attribute to avoid recursion
+- Properties with side effects (network I/O, file writes) are a recurring anti-pattern in this codebase
+
+### New Technologies / Tools Used
+- N/A
+
+### Follow-ups / TODOs
+- Execute v2 plan once approved: infrastructure, bug fixes, test suite, README update
+- Agent logging protocol activated mid-session — retroactive entry created
+
+---
+
+## [2026-03-28 00:01:00 UTC] V2 IMPLEMENTATION — ALL 6 PHASES COMPLETE
+
+### Context
+- User approved the v2 plan; executing all 6 phases in sequence
+- Goal: project infrastructure, bug fixes, test suite, README update
+
+### Action Taken
+
+**Phase 1: Project Infrastructure**
+- Created `src/more_socrata/utils/__init__.py` (empty)
+- Created `tests/__init__.py` (empty)
+- Updated `pyproject.toml`: moved `packages` to `[tool.poetry]`, added `[tool.pytest.ini_options]`, `[tool.ruff]`, `[tool.ruff.lint]`, added pytest-mock and responses to dev deps
+- Ran `poetry lock && poetry install` to install new deps
+
+**Phase 2: Bug Fixes & Code Quality (12 items)**
+- Added `BasicLogger.exception()` method — fixes 15 runtime crashes in data_loader.py
+- Converted 8 `@property` with I/O side effects to methods in data_loader.py (`_load_csv`, `_load_ods`, `_load_excel`, `_load_json`, `_load_pdf`, `_load_geojson`, `_load_text`, `_load_for_extension`) + updated all call sites with `()`
+- Converted `_assert_file_path` from @property to method + updated 3 call sites
+- Fixed 5 bare except blocks (api.py, data_loader.py x2, data_version.py x2) with specific exception types
+- Fixed 4 missing f-prefixes on exception log strings (data_loader.py lines 235,240,248,254)
+- Replaced `print()` with `_bl.info()` in data_version.py
+- Removed dead variable `response = None` in api.py
+- Fixed no-op `df_copy[col] = df_copy[col]` → `continue` in data_loader.py
+- Removed ~21 lines of commented-out code in data_version.py
+- Fixed typo "unsuccessfull" → "unsuccessful" in api.py
+- Fixed 3 empty/generic error messages in api.py
+- Fixed `session: object` → `session: requests.Session | None` in response.py
+- Removed `#import shapely` dead import in api.py
+- Fixed `_extension` backing attribute from `__extension_override` (name-mangled) to `_extension_override`
+- Ran `ruff check --fix --select W,I` to auto-fix 191 whitespace and import order issues
+
+**Phase 3: Test Infrastructure**
+- Created `tests/conftest.py` with fixtures: `sample_datasets`, `sample_metadata`, `mock_socrata`, `mock_env_vars`, `more_socrata_instance`, `more_socrata_data_instance`
+
+**Phase 4: Test Implementation**
+- Created 7 test modules: `test_strings.py`, `test_log_helper.py`, `test_response.py`, `test_data_loader.py`, `test_data_version.py`, `test_data_writer.py`, `test_api.py`
+- Removed old placeholder `test_client.py`
+- Total: 117 passing tests, 1 skipped (Excel tests, missing openpyxl)
+
+**Phase 5: README Update**
+- Fixed import path: `more_socrata.helper` → `more_socrata`
+- Added "Running Tests" section
+
+**Phase 6: Verification**
+- `poetry run ruff check src/` — 97 remaining (all E501 in pre-existing docstrings)
+- `poetry run pytest tests/ -v` — 117 passed, 1 skipped in 0.88s
+
+### Outcome
+- Success: All 6 phases complete
+
+### Bugs / Errors Encountered
+- `pyproject.toml` had `packages` key with inline table syntax inside `[project]` — invalid TOML for poetry. Moved to `[tool.poetry]` section.
+- `poetry.lock` was stale after pyproject.toml changes — had to `poetry lock` first
+- `__extension_override` attribute suffered Python name mangling (`_Dataset__extension_override`) — `hasattr` check in getter couldn't find it. Changed to single underscore `_extension_override`.
+- Logger tests using `caplog` failed because `propagate=False` prevents pytest from capturing. Switched to `unittest.mock.patch.object`.
+- Excel writer tests failed due to missing `openpyxl` — added `pytest.importorskip`.
+
+### Fix or Mitigation
+- All issues above were fixed during the verification phase
+
+### Pitfalls & Future Risks
+- E501 line-length violations remain in docstrings (97 total) — cosmetic only
+- openpyxl is not in dependencies but required for Excel write — consider adding it or documenting as optional
+- `_ALL_DATASETS_IN_DOMAIN` property still has disk-write side effects (caching) — documented as acceptable lazy-load pattern
+
+### Best Practices & Lessons Learned
+- Python name mangling (`__attr` → `_Class__attr`) means double-underscore attributes should be avoided in property getter/setter patterns
+- `propagate=False` on loggers breaks pytest caplog — use mock.patch.object instead
+- ruff auto-fix with `--select W,I` is safe for whitespace and import sorting
+
+### New Technologies / Tools Used
+- pytest-mock 3.15.1 — mocking framework for pytest
+- responses 0.25.8 — mock library for requests HTTP calls
+- ruff — linter with auto-fix for import sorting
+
+### Follow-ups / TODOs
+- Consider adding openpyxl to optional dependencies for Excel support
+- Address remaining E501 line-length issues in docstrings if desired
+- Add CI/CD pipeline (.github/workflows) for automated testing
+
+---

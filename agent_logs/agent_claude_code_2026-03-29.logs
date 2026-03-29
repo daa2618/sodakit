@@ -1,0 +1,103 @@
+# [SESSION START] 2026-03-29 - Conversation ID: rename-to-sodakit
+
+---
+
+## [2026-03-29 00:00:00 UTC] RENAME PROJECT: more_socrata → sodakit
+
+### Context
+- User requested renaming the project from "more_socrata" to "sodakit"
+- Name chosen because it references the SODA (Socrata Open Data API) and signals a toolkit
+
+### Action Taken
+- Renamed directory: `src/more_socrata/` → `src/sodakit/`
+- Updated `pyproject.toml`: package name `more-socrata` → `sodakit`, packages include `sodakit`
+- Updated all imports in `src/sodakit/api.py`: `from more_socrata.utils.*` → `from sodakit.utils.*`
+- Updated all imports in 7 test files: `from more_socrata.*` → `from sodakit.*`
+- Updated `tests/conftest.py`: patch target `more_socrata.api.Socrata` → `sodakit.api.Socrata`, imports, fixture names (`more_socrata_instance` → `sodakit_instance`, `more_socrata_data_instance` → `sodakit_data_instance`)
+- Updated `tests/test_api.py`: patch target `more_socrata.api.Response` → `sodakit.api.Response`, all fixture references
+- Updated `README.md`: all references to `more_socrata` → `sodakit`
+- Updated `CLAUDE.md`: all references to `more_socrata` → `sodakit`
+- Ran `poetry lock && poetry install` to reinstall under new name
+- Ran `poetry run pytest tests/ -v` — 117 passed, 1 skipped
+
+### Outcome
+- Success: Full rename complete, all tests passing
+
+### Bugs / Errors Encountered
+- N/A
+
+### Fix or Mitigation
+- N/A
+
+### Pitfalls & Future Risks
+- GitHub repo URL in README.md still references `daa2618/more_socrata` — will need updating when repo is renamed on GitHub
+- Agent logs reference `more_socrata` historically — left as-is (historical record)
+
+### Best Practices & Lessons Learned
+- Comprehensive grep after rename ensures no stale references remain
+- Fixture names should also be updated to match new naming
+
+### New Technologies / Tools Used
+- N/A
+
+### Follow-ups / TODOs
+- Rename GitHub repository from `more_socrata` to `sodakit` if desired
+- Update git remote URL after GitHub rename
+
+---
+
+# [SESSION START] 2026-03-29 - Conversation ID: add-cli
+
+---
+
+## [2026-03-29 00:00:00 UTC] ADD CLI TO SODAKIT
+
+### Context
+- User requested a CLI entry point for sodakit so datasets can be explored from the terminal
+- Package was library-only with no CLI; needed argparse-based subcommand structure
+- All core features: list, search, filter, load, query, columns, get-id
+
+### Action Taken
+- Fixed `MoreSocrataData.__init__` in `src/sodakit/api.py` (line 241-243) to forward `app_token`, `username`, `password` to `super().__init__()` — previously silently dropped CLI-provided credentials
+- Added `[project.scripts] sodakit = "sodakit.cli:main"` to `pyproject.toml`
+- Created `src/sodakit/cli.py` with:
+  - argparse parser with global options (--domain, --domain-id, --app-token, --username, --password, --json)
+  - Subcommands: list (datasets/agencies/categories/tags/types), search (datasets/tags/agencies), get-id, load, query, columns, filter (tag/type/agency)
+  - Plain-text table/list/dict formatters with 60-char column cap
+  - JSON output mode via --json flag
+  - Error handling for DatasetNotFound/OrganizationNotFound
+- Created `tests/test_cli.py` with 28 tests covering parser validation, all subcommands, JSON output, and formatting
+- Ran `poetry install --with dev` to set up venv
+- Ran `poetry run ruff check --fix src/sodakit/cli.py` — fixed import sorting (I001)
+- Ran `poetry run pytest tests/ -v` — 145 passed, 1 skipped
+
+### Outcome
+- Success: CLI fully functional with all core features, all tests passing
+
+### Bugs / Errors Encountered
+- `MoreSocrataData.__init__` did not forward credentials to `MoreSocrata.__init__` — only worked because credentials came from env vars via dotenv. Fixed as prerequisite for CLI credential flags.
+- ruff import sorting error (I001) on initial cli.py — auto-fixed with `--fix`
+
+### Fix or Mitigation
+- Credential forwarding: added explicit `app_token`, `username`, `password` kwargs in super().__init__() call
+- Import sorting: ran ruff --fix
+
+### Pitfalls & Future Risks
+- `MoreSocrata` writes cache files to `data/<domain_id>/` on first use — CLI will create these files on disk
+- `try_loading_dataset` returns variable types (str, list, list of dicts) — output dispatcher handles all cases but edge cases may exist
+- Large domains could produce very long `list datasets` output — consider --limit in future
+
+### Best Practices & Lessons Learned
+- `main(argv=None)` pattern enables direct testing without subprocess overhead
+- Reusing existing conftest fixtures (mock_socrata, mock_env_vars) kept test setup minimal
+- Nested sub-parsers (list → datasets/agencies/etc.) provide clean CLI UX
+
+### New Technologies / Tools Used
+- argparse (stdlib) — chosen to avoid new dependencies
+
+### Follow-ups / TODOs
+- Consider adding --no-cache flag to skip local file caching
+- Consider adding --limit to list subcommands for large domains
+- Update README.md with CLI usage examples
+
+---
