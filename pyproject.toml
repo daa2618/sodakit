@@ -1,6 +1,6 @@
 [project]
 name = "sodakit"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python library that builds upon socrata library"
 authors = [
     {name = "Dev Anand Anbarasu",email = "anand26dev@gmail.com"}
@@ -21,6 +21,9 @@ dependencies = [
     "requests (>=2.32.4,<3.0.0)"
 ]
 
+
+[project.scripts]
+sodakit = "sodakit.cli:main"
 
 [tool.poetry]
 packages = [{include = "sodakit", from = "src"}]

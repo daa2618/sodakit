@@ -45,3 +45,59 @@
 - Update git remote URL after GitHub rename
 
 ---
+
+# [SESSION START] 2026-03-29 - Conversation ID: add-cli
+
+---
+
+## [2026-03-29 00:00:00 UTC] ADD CLI TO SODAKIT
+
+### Context
+- User requested a CLI entry point for sodakit so datasets can be explored from the terminal
+- Package was library-only with no CLI; needed argparse-based subcommand structure
+- All core features: list, search, filter, load, query, columns, get-id
+
+### Action Taken
+- Fixed `MoreSocrataData.__init__` in `src/sodakit/api.py` (line 241-243) to forward `app_token`, `username`, `password` to `super().__init__()` — previously silently dropped CLI-provided credentials
+- Added `[project.scripts] sodakit = "sodakit.cli:main"` to `pyproject.toml`
+- Created `src/sodakit/cli.py` with:
+  - argparse parser with global options (--domain, --domain-id, --app-token, --username, --password, --json)
+  - Subcommands: list (datasets/agencies/categories/tags/types), search (datasets/tags/agencies), get-id, load, query, columns, filter (tag/type/agency)
+  - Plain-text table/list/dict formatters with 60-char column cap
+  - JSON output mode via --json flag
+  - Error handling for DatasetNotFound/OrganizationNotFound
+- Created `tests/test_cli.py` with 28 tests covering parser validation, all subcommands, JSON output, and formatting
+- Ran `poetry install --with dev` to set up venv
+- Ran `poetry run ruff check --fix src/sodakit/cli.py` — fixed import sorting (I001)
+- Ran `poetry run pytest tests/ -v` — 145 passed, 1 skipped
+
+### Outcome
+- Success: CLI fully functional with all core features, all tests passing
+
+### Bugs / Errors Encountered
+- `MoreSocrataData.__init__` did not forward credentials to `MoreSocrata.__init__` — only worked because credentials came from env vars via dotenv. Fixed as prerequisite for CLI credential flags.
+- ruff import sorting error (I001) on initial cli.py — auto-fixed with `--fix`
+
+### Fix or Mitigation
+- Credential forwarding: added explicit `app_token`, `username`, `password` kwargs in super().__init__() call
+- Import sorting: ran ruff --fix
+
+### Pitfalls & Future Risks
+- `MoreSocrata` writes cache files to `data/<domain_id>/` on first use — CLI will create these files on disk
+- `try_loading_dataset` returns variable types (str, list, list of dicts) — output dispatcher handles all cases but edge cases may exist
+- Large domains could produce very long `list datasets` output — consider --limit in future
+
+### Best Practices & Lessons Learned
+- `main(argv=None)` pattern enables direct testing without subprocess overhead
+- Reusing existing conftest fixtures (mock_socrata, mock_env_vars) kept test setup minimal
+- Nested sub-parsers (list → datasets/agencies/etc.) provide clean CLI UX
+
+### New Technologies / Tools Used
+- argparse (stdlib) — chosen to avoid new dependencies
+
+### Follow-ups / TODOs
+- Consider adding --no-cache flag to skip local file caching
+- Consider adding --limit to list subcommands for large domains
+- Update README.md with CLI usage examples
+
+---

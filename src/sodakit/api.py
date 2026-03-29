@@ -239,7 +239,10 @@ class MoreSocrataData(MoreSocrata):
 
 
     def __init__(self, domain, domain_id, **kwargs):
-        super().__init__(domain, domain_id)
+        super().__init__(domain, domain_id,
+                         app_token=kwargs.get("app_token"),
+                         username=kwargs.get("username"),
+                         password=kwargs.get("password"))
         self.dataset_id = kwargs.get("dataset_id")
 
     def _get_resource_for_dataset(self):
